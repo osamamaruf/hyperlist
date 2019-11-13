@@ -30,6 +30,15 @@ var addClass = 'classList' in document.documentElement ? function (element, clas
   element.setAttribute('class', oldClass + ' ' + className);
 };
 
+//fill items
+var fill = function fill(items, value) {
+  var arr = new Array(items);
+  for (var i = 0; i < arr.length;) {
+    arr[i++] = value;
+  }
+  return arr;
+};
+
 /**
  * Creates a HyperList instance that virtually scrolls very large amounts of
  * data effortlessly.
@@ -165,7 +174,7 @@ var HyperList = function () {
       if (!Array.isArray(config.itemHeight) && !isNumber(config.itemHeight)) {
         throw new Error('\n        Invalid required `itemHeight` value, expected number or array\n      '.trim());
       } else if (isNumber(config.itemHeight)) {
-        this._itemHeights = Array(config.total).fill(config.itemHeight);
+        this._itemHeights = fill(config.total, config.itemHeight);
       } else {
         this._itemHeights = config.itemHeight;
       }
@@ -247,7 +256,7 @@ var HyperList = function () {
       this._scrollHeight = this._computeScrollHeight();
 
       // Reuse the item positions if refreshed, otherwise set to empty array.
-      this._itemPositions = this._itemPositions || Array(config.total).fill(0);
+      this._itemPositions = this._itemPositions || fill(config.total, 0);
 
       // Each index in the array should represent the position in the DOM.
       this._computePositions(0);
@@ -283,13 +292,16 @@ var HyperList = function () {
         throw new Error('Generator did not return a DOM Node for index: ' + i);
       }
 
-      addClass(item, config.rowClassName || 'vrow');
+      if (config.rowClassName) {
+        addClass(item, config.rowClassName || 'vrow');
+      }
 
       var top = this._itemPositions[i] + this._scrollPaddingTop;
 
-      HyperList.mergeStyle(item, _defineProperty({
-        position: 'absolute'
-      }, config.horizontal ? 'left' : 'top', top + 'px'));
+      HyperList.mergeStyle(item, {
+        position: 'absolute',
+        transform: config.horizontal ? 'translate3d(' + top + 'px, 0, 0)' : 'translate3d(0, ' + top + 'px, 0)'
+      });
 
       return item;
     }
@@ -384,7 +396,7 @@ var HyperList = function () {
   }, {
     key: '_computeScrollHeight',
     value: function _computeScrollHeight() {
-      var _HyperList$mergeStyle2,
+      var _HyperList$mergeStyle,
           _this2 = this;
 
       var config = this._config;
@@ -394,11 +406,11 @@ var HyperList = function () {
         return a + b;
       }, 0) + this._scrollPaddingBottom + this._scrollPaddingTop;
 
-      HyperList.mergeStyle(this._scroller, (_HyperList$mergeStyle2 = {
+      HyperList.mergeStyle(this._scroller, (_HyperList$mergeStyle = {
         opacity: 0,
         position: 'absolute',
         top: '0px'
-      }, _defineProperty(_HyperList$mergeStyle2, isHoriz ? 'height' : 'width', '1px'), _defineProperty(_HyperList$mergeStyle2, isHoriz ? 'width' : 'height', scrollHeight + 'px'), _HyperList$mergeStyle2));
+      }, _defineProperty(_HyperList$mergeStyle, isHoriz ? 'height' : 'width', '1px'), _defineProperty(_HyperList$mergeStyle, isHoriz ? 'width' : 'height', scrollHeight + 'px'), _HyperList$mergeStyle));
 
       // Calculate the height median
       var sortedItemHeights = this._itemHeights.slice(0).sort(function (a, b) {
@@ -413,8 +425,9 @@ var HyperList = function () {
       this._screenItemsLen = Math.ceil(containerHeight / averageHeight);
       this._containerSize = containerHeight;
 
-      // Cache 3 times the number of items that fit in the container viewport.
-      this._cachedItemsLen = Math.max(this._cachedItemsLen || 0, this._screenItemsLen * 3);
+      // Cache max 3 times the number of items that fit in the container viewport.
+      var itemsToCache = config.cacheLength || 3;
+      this._cachedItemsLen = Math.max(this._cachedItemsLen || 0, this._screenItemsLen * itemsToCache);
       this._averageHeight = averageHeight;
 
       if (config.reverse) {
